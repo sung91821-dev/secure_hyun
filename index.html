@@ -43,6 +43,7 @@ mark{background:var(--hi);color:inherit}
 <body>
 <header>
   <h1>정보보안기사 실기 · 키워드 암기노트</h1>
+  <div id="dday" hidden style="font-size:13px;font-weight:600;color:var(--acc);background:var(--accbg);border-radius:8px;padding:5px 10px;margin:0 0 8px"></div>
   <div class="tabs" id="tabs"></div>
   <div class="tools">
     <input id="q" type="search" placeholder="검색 (예: SetUID, 72시간)">
@@ -1226,6 +1227,7 @@ const ab=document.getElementById("atk");ab.onclick=()=>{onlyAtk=!onlyAtk;ab.clas
 const qb=document.getElementById("quiz");qb.onclick=()=>{document.body.classList.toggle("quiz");qb.classList.toggle("on")};
 out.addEventListener("click",e=>{const b=e.target.closest(".mb");if(b){const m=b.nextElementSibling;m.hidden=!m.hidden;b.classList.toggle("on",!m.hidden);return}const d=e.target.closest(".d");if(d&&document.body.classList.contains("quiz"))d.classList.toggle("show")});
 render();
+(function(){const el=document.getElementById("dday"),T=new Date("2026-11-14T09:00:00+09:00").getTime();function tick(){const r=T-Date.now();if(r<=0){el.hidden=true;clearInterval(t);return}const m=Math.floor(r/60000),d=Math.floor(m/1440),h=Math.floor(m%1440/60),mi=m%60;el.textContent=`⏰ 11월 14일 9시까지 ${d}일 ${h}시간 ${mi}분`;el.hidden=false}const t=setInterval(tick,20000);tick()})();
 </script>
 </body>
 </html>
